@@ -20,9 +20,17 @@ def loadData():
   Base = declarative_base()
   metadata = MetaData()
   metadata.reflect(bind=engine)
-  table = metadata.tables['Usage']
-  if table is not None:
-    Base.metadata.drop_all(engine, [table], checkfirst=True)
+  
+  try:
+    table = metadata.tables['Usage']
+    if table is not None:
+      Base.metadata.drop_all(engine, [table], checkfirst=True)
+  except KeyError as e:
+    print('KeyError caught, which means Usage table does not exist.  Ignoring')
+  except:
+    print('I got another exception, but I should re-raise')
+    raise
+
   filtered.to_sql('Usage', con=engine, if_exists='append')
   return 'Data loaded successfully', 200
   
@@ -38,16 +46,13 @@ def services():
 
 def unblended(service):
   if (service != 'ALL'):
-    queryText = "select line_item_unblended_cost from Usage where product_servicecode = '"+service+"';"
+    queryText = "select sum(line_item_unblended_cost) from Usage where product_servicecode = '"+service+"';"
   else:
-    queryText = 'select line_item_unblended_cost from Usage;'
+    queryText = 'select sum(line_item_unblended_cost) from Usage;'
   with engine.connect() as con:
     sql = text(queryText)
-    result = con.execute(sql).fetchall()
-  retVal = 0
-  for row in result:
-    retVal+=row[0];
-  return retVal
+    result = con.execute(sql).fetchone()
+  return result[0]
 
 @app.route("/unblended")
 def unblendedEndpoint():
