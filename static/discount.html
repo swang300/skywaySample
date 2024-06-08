@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>
+        Skyway Discount Ratio Calculator
+    </title>
+</head>
+
+<body>
+    <h1 style="color: #373D71">
+        Skyway Discount Ratio Calculator
+    </h1>
+    <p> Service:
+        <select id="service">
+		<option>ALL</option></select>
+    </p>
+
+
+    <p> The unblended cost of the selected service is:
+        <span class="unblendedCost"></span>
+    </p>
+    <p> The discounted cost of the selected service is:
+        <span class="discountedCost"></span>
+    </p>
+    <p> The discount ratio of the selected service is:
+        <span class="discountRate"></span>
+    </p>
+
+
+    <button onclick="updateValues()"> Update Values </button>
+
+    <script type="text/javascript">
+		const serviceList = document.getElementById("service");
+		const getServices = async () => {
+			const response = await fetch("http://localhost:5000/services");
+			<!--console.log(response);-->
+			const data = response.json();
+			return data;
+		};
+		const getUnblended = async (service) => {
+			const response = await fetch("http://localhost:5000/unblended?service="+service);
+			<!--console.log(response);-->
+			const data = response.json();
+			return data;
+		};
+		const getDiscountedCost = async (service) => {
+			const response = await fetch("http://localhost:5000/discounted?service="+service);
+			<!--console.log(response);-->
+			const data = response.json();
+			return data;
+		};
+		const getDiscountedRate = async (service) => {
+			const response = await fetch("http://localhost:5000/discountRate?service="+service);
+			<!--console.log(response);-->
+			const data = response.json();
+			return data;
+		};
+		const displayOption = async () => {
+			const options = await getServices();
+			options.forEach(option => {
+    
+				const newOption = document.createElement("option");
+				<!--console.log(option);-->
+				newOption.value = option;
+				newOption.text = option;
+				serviceList.appendChild(newOption);    
+			});
+		};
+		
+        const updateValues = async () => {
+            selectElement = 
+                  document.querySelector('#service');
+            service = selectElement.value;
+			const serviceUnblended = await getUnblended(service);
+            document.querySelector('.unblendedCost').textContent = serviceUnblended;
+			const servicediscountedCost = await getDiscountedCost(service);
+            document.querySelector('.discountedCost').textContent = servicediscountedCost;
+			const serviceDiscountedRate = await getDiscountedRate(service);
+            document.querySelector('.discountRate').textContent = (serviceDiscountedRate * 100) + '%';
+        }
+		displayOption();
+    </script>
+</body>
+
+</html>
