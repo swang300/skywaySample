@@ -1,72 +1,46 @@
 import pyarrow.parquet as parquet
 import pandas
-import sqlalchemy
-from sqlalchemy import MetaData
-from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.sql import text
+import duckdb
 from flask import Flask
 from flask import request
 
 app = Flask(__name__)
-engine = create_engine('sqlite:///usage.sqlite', echo=False)
+con = duckdb.connect(database = "my-db.duckdb", read_only = False)
 
 @app.route("/loadData")
 def loadData():
-  table = parquet.read_table('Oct2018-WorkshopCUR-00001.snappy.parquet')
-  df = table.to_pandas()
-  usageOnly = df[df['line_item_line_item_type'] == 'Usage']
-  filtered = usageOnly[['line_item_unblended_cost','product_servicecode']]
-  Base = declarative_base()
-  metadata = MetaData()
-  metadata.reflect(bind=engine)
-  
-  try:
-    table = metadata.tables['Usage']
-    if table is not None:
-      Base.metadata.drop_all(engine, [table], checkfirst=True)
-  except KeyError as e:
-    print('KeyError caught, which means Usage table does not exist.  Ignoring')
-  except:
-    print('I got another exception, but I should re-raise')
-    raise
-
-  filtered.to_sql('Usage', con=engine, if_exists='append')
+  con.sql("drop table if exists usage")
+  con.sql("create table usage as from 'Oct2018-WorkshopCUR-00001.snappy.parquet'")
   return 'Data loaded successfully', 200
   
 @app.route("/services")
 def services():
-  with engine.connect() as con:
-    sql = text('select distinct product_servicecode from Usage;')
-    result = con.execute(sql).fetchall()
-  retVal = []
-  for row in result:
-    retVal.append(row[0]);
+  result = con.sql("select distinct product_servicecode from Usage").df()
+  
+  retVal = result['product_servicecode'].tolist()
+  print(retVal)
   return retVal, 200
 
+  
 def unblended(service):
   if (service != 'ALL'):
-    queryText = "select sum(line_item_unblended_cost) from Usage where product_servicecode = '"+service+"';"
+    queryText = "select sum(line_item_unblended_cost) from Usage where product_servicecode = '"+service+"'"
   else:
-    queryText = 'select sum(line_item_unblended_cost) from Usage;'
-  with engine.connect() as con:
-    sql = text(queryText)
-    result = con.execute(sql).fetchone()
+    queryText = 'select sum(line_item_unblended_cost) from Usage'
+  result = con.sql(queryText).fetchone()
   return result[0]
 
 @app.route("/unblended")
 def unblendedEndpoint():
   service = request.args.get('service', default = 'ALL', type=str)
   return str(unblended(service)), 200
-  
+
 def discounted(service):
   if (service != 'ALL'):
     queryText = "select product_servicecode,line_item_unblended_cost from Usage where product_servicecode = '"+service+"';"
   else:
     queryText = 'select product_servicecode,line_item_unblended_cost from Usage;'
-  with engine.connect() as con:
-    sql = text(queryText)
-    result = con.execute(sql).fetchall()
+  result = con.sql(queryText).fetchall()
   retVal = 0
   for row in result:
     match row[0]:
@@ -84,12 +58,7 @@ def discounted(service):
         ratio = 1
     retVal+=row[1]*ratio;
   return retVal
-  
-@app.route("/discounted")
-def discountedEndpoint():
-  service = request.args.get('service', default = 'ALL', type=str)
-  return str(discounted(service)), 200
-    
+      
 @app.route("/discountRate")
 def discountRateEndpoint():
   service = request.args.get('service', default = 'ALL', type=str)
@@ -101,6 +70,11 @@ def discountRateEndpoint():
   else:
     rate = 1
   return str(rate), 200
+  
+@app.route("/discounted")
+def discountedEndpoint():
+  service = request.args.get('service', default = 'ALL', type=str)
+  return str(discounted(service)), 200
   
 if __name__ == "__main__":
   app.run()
