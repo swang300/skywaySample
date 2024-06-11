@@ -15,7 +15,7 @@ def loadData():
   
 @app.route("/services")
 def services():
-  result = con.sql("select distinct product_servicecode from Usage").df()
+  result = con.sql("select distinct product_servicecode from Usage where line_item_line_item_type = 'Usage'").df()
   
   retVal = result['product_servicecode'].tolist()
   print(retVal)
@@ -24,9 +24,9 @@ def services():
   
 def unblended(service):
   if (service != 'ALL'):
-    queryText = "select sum(line_item_unblended_cost) from Usage where product_servicecode = '"+service+"'"
+    queryText = "select sum(line_item_unblended_cost) from Usage where product_servicecode = '"+service+"' and line_item_line_item_type = 'Usage'"
   else:
-    queryText = 'select sum(line_item_unblended_cost) from Usage'
+    queryText = "select sum(line_item_unblended_cost) from Usage where line_item_line_item_type = 'Usage'"
   result = con.sql(queryText).fetchone()
   return result[0]
 
@@ -37,9 +37,9 @@ def unblendedEndpoint():
 
 def discounted(service):
   if (service != 'ALL'):
-    queryText = "select product_servicecode,line_item_unblended_cost from Usage where product_servicecode = '"+service+"';"
+    queryText = "select product_servicecode,line_item_unblended_cost from Usage where product_servicecode = '"+service+"' and line_item_line_item_type = 'Usage'"
   else:
-    queryText = 'select product_servicecode,line_item_unblended_cost from Usage;'
+    queryText = "select product_servicecode,line_item_unblended_cost from Usage where line_item_line_item_type = 'Usage'"
   result = con.sql(queryText).fetchall()
   retVal = 0
   for row in result:
