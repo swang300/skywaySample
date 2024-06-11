@@ -1,5 +1,5 @@
 # temp DB file
-usage.sqlite
+*.duckdb
 
 ### Python ###
 # Byte-compiled / optimized / DLL files
